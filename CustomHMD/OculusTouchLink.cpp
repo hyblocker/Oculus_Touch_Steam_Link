@@ -444,7 +444,7 @@ private:
 class CSampleControllerDriver : public vr::ITrackedDeviceServerDriver                                               
 {                                                                                                                                             // hand_offset({ 0.01071,0.04078,-0.04731 }), hand_offset2({-0.003,-0.101,0.0089 })
 public:                                                                                                                                      //x = 0.00571 y = 0.04078 z = -0.03531 x2 =-0.000999998 y2 = -0.1 z = 0.0019
-    CSampleControllerDriver(ovrSession mSession, bool isRightHand, shared_buffer *comm_buffer/*, ovrVector3f overall_offset, ovrQuatf overall_rotation*/): mSession(mSession),isRightHand(isRightHand), comm_buffer(comm_buffer), hand_offset({ 0.00571,0.04078,-0.03531 }), hand_offset2({ -0.000999998,-0.1, 0.0019 })/*, overall_offset(overall_offset), overall_rotation(overall_rotation)*/
+    CSampleControllerDriver(ovrSession mSession, bool isRightHand, bool isWaist, shared_buffer *comm_buffer/*, ovrVector3f overall_offset, ovrQuatf overall_rotation*/): mSession(mSession), isRightHand(isRightHand), isWaist(isWaist), comm_buffer(comm_buffer), hand_offset({ 0.00571,0.04078,-0.03531 }), hand_offset2({ -0.000999998,-0.1, 0.0019 })/*, overall_offset(overall_offset), overall_rotation(overall_rotation)*/
     {
         m_unObjectId = vr::k_unTrackedDeviceIndexInvalid;
         m_ulPropertyContainer = vr::k_ulInvalidPropertyContainer;
@@ -1169,6 +1169,7 @@ private:
     std::string m_sModelNumber;
     ovrSession mSession;
     bool isRightHand;
+    bool isWaist;
     ovrVector3f hand_offset;
     ovrVector3f hand_offset2;
 
@@ -1210,6 +1211,7 @@ private:
 #endif
     CSampleControllerDriver* m_pLController = nullptr;
     CSampleControllerDriver* m_pRController = nullptr;
+    CSampleControllerDriver* m_pWaistController = nullptr;
     HANDLE hMapFile;
     shared_buffer* comm_buffer;
 #if DRAW_FRAME
@@ -1453,11 +1455,14 @@ EVRInitError CServerDriver_OVRTL::Init(vr::IVRDriverContext* pDriverContext)
     vr::VRServerDriverHost()->TrackedDeviceAdded(m_pNullHmdLatest->GetSerialNumber().c_str(), vr::TrackedDeviceClass_HMD, m_pNullHmdLatest);
 #endif
 #if CREATE_CONTROLLERS
-    m_pLController = new CSampleControllerDriver(mSession, false, comm_buffer/*, overall_offset, overall_rotation*/);
+    m_pLController = new CSampleControllerDriver(mSession, false, false, comm_buffer/*, overall_offset, overall_rotation*/);
     vr::VRServerDriverHost()->TrackedDeviceAdded(m_pLController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pLController);
 
-    m_pRController = new CSampleControllerDriver(mSession, true, comm_buffer/*, overall_offset, overall_rotation*/);
+    m_pRController = new CSampleControllerDriver(mSession, true, false, comm_buffer/*, overall_offset, overall_rotation*/);
     vr::VRServerDriverHost()->TrackedDeviceAdded(m_pRController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pRController);
+    
+    m_pWaistController = new CSampleControllerDriver(mSession, false, true, comm_buffer/*, overall_offset, overall_rotation*/);
+    vr::VRServerDriverHost()->TrackedDeviceAdded(m_pWaistController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pWaistController);
 #endif
 
 #if EXPERIMENTAL_OFFSET_CALLIBRATION
@@ -1487,6 +1492,8 @@ void CServerDriver_OVRTL::Cleanup()
     m_pLController = NULL;
     delete m_pRController;
     m_pRController = NULL;
+    delete m_pWaistController
+    m_pWaistController = NULL;
 #endif
     ovr_Destroy(mSession);
     ovr_Shutdown();
@@ -1516,6 +1523,10 @@ void CServerDriver_OVRTL::RunFrame()
     if (m_pRController)
     {
         m_pRController->RunFrame();
+    }
+    if (m_pWaistController)
+    {
+        m_pWaistController->RunFrame();
     }
 
     vr::VREvent_t vrEvent;
