@@ -448,7 +448,10 @@ public:                                                                         
     {
         m_unObjectId = vr::k_unTrackedDeviceIndexInvalid;
         m_ulPropertyContainer = vr::k_ulInvalidPropertyContainer;
-        if (isRightHand) {
+        if (isWaist){
+            m_sSerialNumber = "LHR-OCULUS_VROBJECT";
+            m_sModelNumber = "TouchLink Tracker (VR Object)";
+        } else if (isRightHand) {
             m_sSerialNumber = "LHR-OCULUS_RIGHT";
             m_sModelNumber = "TouchLink Tracker (Right)";
         } else {
@@ -488,39 +491,40 @@ public:                                                                         
         switch (hmd_desc.Type)
         {
             case ovrHmd_CV1:
-                if (isRightHand) {
+                if (isWaist) {
+                    VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-CV1_VROBJECT");
+                } else if (isRightHand) {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-CV1_RIGHT");
-                }
-                else {
+                } else {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-CV1_LEFT");
                 }
             break;
             case ovrHmd_RiftS:
-                if (isRightHand) {
+                if (isWaist) {
+                    VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-RIFTS_VROBJECT");
+                } else if (isRightHand) {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-RIFTS_RIGHT");
-                }
-                else {
+                } else {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-RIFTS_LEFT");
                 }
             case ovrHmd_Quest:
                 if (isRightHand) {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-QUEST_RIGHT");
-                }
-                else {
+                } else {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-QUEST_LEFT");
                 }
             case ovrHmd_Quest2:
                 if (isRightHand) {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-QUEST2_RIGHT");
-                }
-                else {
+                } else {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-QUEST2_LEFT");
                 }
             default:
-                if (isRightHand) {
+                if (isWaist) {
+                    VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-OCULUS_VROBJECT");
+                } else if (isRightHand) {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-OCULUS_RIGHT");
-                }
-                else {
+                } else {
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-OCULUS_LEFT");
                 }
         }
@@ -536,8 +540,10 @@ public:                                                                         
         //vr::VRProperties()->SetUint64Property(m_ulPropertyContainer, vr::Prop_ParentDriver_Uint64, 8589934599U); // Strange value from dump
         vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_ResourceRoot_String, "htc");
 
-
-        vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_RegisteredDeviceType_String, (isRightHand)?"htc/vive_trackerLHR-OCULUS_RIGHT": "htc/vive_trackerLHR-OCULUS_LEFT");
+        if (isWaist)
+            vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_RegisteredDeviceType_String, "htc/vive_trackerLHR-OCULUS_VROBJECT");
+        else
+            vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_RegisteredDeviceType_String, (isRightHand)?"htc/vive_trackerLHR-OCULUS_RIGHT": "htc/vive_trackerLHR-OCULUS_LEFT");
 
         vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_InputProfilePath_String, "{htc}/input/vive_tracker_profile.json");
         // vr::VRProperties()->SetUint64Property(m_ulPropertyContainer, vr::Prop_SupportedButtons_Uint64, 30064771207U);
@@ -762,16 +768,23 @@ public:                                                                         
     }
     virtual DriverPose_t CalculatePose()
     {
-
         ovrTrackingState ss = ovr_GetTrackingState(mSession, 0, false);
-        m_time_of_last_pose = ss.HandPoses[isRightHand].TimeInSeconds;
+        ovrPoseStatef poseState;
+
+        if (isWaist){
+            ovr_GetDevicePoses(ss, &ovrTrackedDevice_Object0, 1, 0, &poseState);
+        } else {
+            poseState = ss.HandPoses[isRightHand]
+        }
+        
+        m_time_of_last_pose = poseState.TimeInSeconds;
         DriverPose_t pose = { 0 };
         pose.poseIsValid = true;
         pose.result = TrackingResult_Running_OK;
         pose.deviceIsConnected = true;
     
         ovrQuatf hand_qoffset = { 0.3420201, 0, 0, 0.9396926 };
-        ovrQuatf hand_input = ss.HandPoses[isRightHand].ThePose.Orientation;
+        ovrQuatf hand_input = poseState.ThePose.Orientation;
         ovrQuatf hand_result = ovrQuatfmul(hand_input, hand_qoffset);
         ovrVector3f hand_voffset={ 0,0,0 };
         if (isRightHand) {
@@ -789,9 +802,9 @@ public:                                                                         
         pose.qRotation.y = hand_result.y;
         pose.qRotation.z = hand_result.z;
         ovrVector3f position;
-        position.x = ss.HandPoses[isRightHand].ThePose.Position.x + hand_voffset.x + hand_offset2.x;
-        position.y = ss.HandPoses[isRightHand].ThePose.Position.y + hand_voffset.y + hand_offset2.y;
-        position.z = ss.HandPoses[isRightHand].ThePose.Position.z + hand_voffset.z + hand_offset2.z;
+        position.x = poseState.ThePose.Position.x + hand_voffset.x + hand_offset2.x;
+        position.y = poseState.ThePose.Position.y + hand_voffset.y + hand_offset2.y;
+        position.z = poseState.ThePose.Position.z + hand_voffset.z + hand_offset2.z;
         //position = rotateVector2(position, overall_rotation);
         pose.vecPosition[0] = position.x;// +overall_offset.x;
         pose.vecPosition[1] = position.y;// +overall_offset.y;
@@ -799,8 +812,8 @@ public:                                                                         
      
 
 
-        ovrVector3f linAcc = (ss.HandPoses[isRightHand].LinearAcceleration);
-        ovrVector3f linVel = (ss.HandPoses[isRightHand].LinearVelocity);
+        ovrVector3f linAcc = (poseState.LinearAcceleration);
+        ovrVector3f linVel = (poseState.LinearVelocity);
         ovrQuatf hand_nqoffset = { 0.3420201, 0, 0, -0.9396926 };
         /*linAcc = rotateVector2(linAcc, hand_qoffset);  
         linVel = rotateVector2(linVel, hand_nqoffset);*/    //do not do this
@@ -817,9 +830,9 @@ public:                                                                         
         pose.vecVelocity[1] = linVel.y;
         pose.vecVelocity[2] = linVel.z;
 
-        pose.vecAngularVelocity[0] = ss.HandPoses[isRightHand].AngularVelocity.x;
-        pose.vecAngularVelocity[1] = ss.HandPoses[isRightHand].AngularVelocity.y;
-        pose.vecAngularVelocity[2] = ss.HandPoses[isRightHand].AngularVelocity.z;
+        pose.vecAngularVelocity[0] = poseState.AngularVelocity.x;
+        pose.vecAngularVelocity[1] = poseState.AngularVelocity.y;
+        pose.vecAngularVelocity[2] = poseState.AngularVelocity.z;
 
         pose.poseTimeOffset = -0.01;
         return pose;
@@ -1577,5 +1590,3 @@ HMD_DLL_EXPORT void* HmdDriverFactory(const char* pInterfaceName, int* pReturnCo
 
     return NULL;
 }
-
-
