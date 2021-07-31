@@ -772,11 +772,12 @@ public:                                                                         
         ovrPoseStatef poseState;
 
         if (isWaist){
-            ovr_GetDevicePoses(mSession, &ovrTrackedDevice_Object0, 1, 0, &poseState);
+            ovrTrackedDeviceType type = ovrTrackedDevice_Object0;
+            ovr_GetDevicePoses(mSession, &type, 1, 0, &poseState);
         } else {
-            poseState = ss.HandPoses[isRightHand]
+            poseState = ss.HandPoses[isRightHand];
         }
-        
+
         m_time_of_last_pose = poseState.TimeInSeconds;
         DriverPose_t pose = { 0 };
         pose.poseIsValid = true;
@@ -988,6 +989,7 @@ public:                                                                         
                 // Your driver would read whatever hardware state is associated with its input components and pass that
                 // in to UpdateBooleanComponent. This could happen in RunFrame or on a thread of your own that's reading USB
                 // state. There's no need to update input state unless it changes, but it doesn't do any harm to do so.
+    /*
 #if USE_MUTEX
         if (!WaitForSingleObject(comm_mutex, 10)) {
 #else
@@ -1505,7 +1507,7 @@ void CServerDriver_OVRTL::Cleanup()
     m_pLController = NULL;
     delete m_pRController;
     m_pRController = NULL;
-    delete m_pWaistController
+    delete m_pWaistController;
     m_pWaistController = NULL;
 #endif
     ovr_Destroy(mSession);
