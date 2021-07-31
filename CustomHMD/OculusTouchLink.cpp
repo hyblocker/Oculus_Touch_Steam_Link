@@ -772,7 +772,7 @@ public:                                                                         
         ovrPoseStatef poseState;
 
         if (isWaist){
-            ovr_GetDevicePoses(ss, &ovrTrackedDevice_Object0, 1, 0, &poseState);
+            ovr_GetDevicePoses(mSession, &ovrTrackedDevice_Object0, 1, 0, &poseState);
         } else {
             poseState = ss.HandPoses[isRightHand]
         }
