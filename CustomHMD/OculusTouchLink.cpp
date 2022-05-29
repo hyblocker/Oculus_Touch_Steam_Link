@@ -2,7 +2,9 @@
 //============ Copyright (c) Valve Corporation, All rights reserved. ============
 
 #include <openvr_driver.h>
+// #include "json.h" // im too lazy to figure out how to use this api so ima be lazy :D
 #include "driverlog.h"
+#include <filesystem>
 //#define DRAW_FRAME 1
 //#define DRAW_FRAME 1
 
@@ -131,6 +133,10 @@ CWatchdogDriver_Sample g_watchdogDriverNull;
 
 bool g_bExiting = false;
 
+// bool s_useOculusTrackingSpace = false;
+bool s_spawnHipTracker        = true;
+bool s_spawnRightLegTracker   = true;
+bool s_spawnLeftLegTracker    = true;
 
 
 void WatchdogThreadFunction()
@@ -159,6 +165,7 @@ EVRInitError CWatchdogDriver_Sample::Init(vr::IVRDriverContext* pDriverContext)
     VR_INIT_WATCHDOG_DRIVER_CONTEXT(pDriverContext);
     InitDriverLog(vr::VRDriverLog());
     DriverLog("Started OculusTouchLink driver\n");
+
     // Watchdog mode on Windows starts a thread that listens for the 'Y' key on the keyboard to 
     // be pressed. A real driver should wait for a system button event or something else from the 
     // the hardware that signals that the VR system should start up.
@@ -528,12 +535,13 @@ public:                                                                         
                     VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_SerialNumber_String, "LHR-OCULUS_LEFT");
                 }
         }
-        vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_TrackingSystemName_String, "oculus");
+        // vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_TrackingSystemName_String, s_useOculusTrackingSpace ? "oculus" : "lighthouse");
+        vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_TrackingSystemName_String, "touchlink");
         VRProperties()->SetStringProperty(m_ulPropertyContainer, Prop_RenderModelName_String, "{htc}vr_tracker_vive_1_0");
-        vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_ModelNumber_String, "Vive Tracker Pro MV");
+        vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_ModelNumber_String, "TouchLink Tracker");
         // vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_SerialNumber_String, m_sSerialNumber.c_str());
-       /* vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_RenderModelName_String, (isRightHand) ? "oculus_cv1_controller_right" : "oculus_cv1_controller_left");    */
-        vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_ManufacturerName_String, "HTC");
+        /* vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_RenderModelName_String, (isRightHand) ? "oculus_cv1_controller_right" : "oculus_cv1_controller_left");    */
+        vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_ManufacturerName_String, "Ocusus");
         vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_HardwareRevision_String, "14");
         vr::VRProperties()->SetUint64Property(m_ulPropertyContainer, vr::Prop_HardwareRevision_Uint64, 14U);
         vr::VRProperties()->SetInt32Property(m_ulPropertyContainer, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_GenericTracker);
@@ -1381,6 +1389,32 @@ EVRInitError CServerDriver_OVRTL::Init(vr::IVRDriverContext* pDriverContext)
     VR_INIT_SERVER_DRIVER_CONTEXT(pDriverContext);
     InitDriverLog(vr::VRDriverLog());
 
+    auto appdata = std::filesystem::temp_directory_path()
+        .parent_path()
+        .parent_path();
+
+    appdata /= "TouchLink";
+
+    if (!std::filesystem::exists(appdata))
+        std::filesystem::create_directories(appdata);
+
+    // return of the konct
+    std::filesystem::path noHip         = std::filesystem::absolute( appdata / std::filesystem::path( "no-hip" ));
+    std::filesystem::path noLeftLeg     = std::filesystem::absolute( appdata / std::filesystem::path( "no-left-leg" ));
+    std::filesystem::path noRightLeg    = std::filesystem::absolute( appdata / std::filesystem::path( "no-right-leg" ));
+    std::filesystem::path bro           = std::filesystem::absolute( appdata / std::filesystem::path( "no-bitches" ));
+
+    s_spawnHipTracker = !(std::filesystem::exists( noHip ));
+    s_spawnRightLegTracker = !(std::filesystem::exists( noLeftLeg ));
+    s_spawnLeftLegTracker = !(std::filesystem::exists( noRightLeg ));
+    auto broSus = !(std::filesystem::exists( bro ));
+
+    DriverLog(("noHipFile:: " + noHip.string()).c_str());
+    DriverLog(("noLeftLeg:: " + noLeftLeg.string()).c_str());
+    DriverLog(("noRightLeg:: " + noRightLeg.string()).c_str());
+    if (broSus)
+    DriverLog("bro i tought you had bitches :(");
+
 #if EXPERIMENTAL_OFFSET_CALIBRATION
     ovrVector3f overall_offset{ -0.01*30.57033738,-0.01*46.98443338, 0.01* 54.50133916 };
     ovrQuatf overall_rotation{ 0 };
@@ -1470,14 +1504,21 @@ EVRInitError CServerDriver_OVRTL::Init(vr::IVRDriverContext* pDriverContext)
     vr::VRServerDriverHost()->TrackedDeviceAdded(m_pNullHmdLatest->GetSerialNumber().c_str(), vr::TrackedDeviceClass_HMD, m_pNullHmdLatest);
 #endif
 #if CREATE_CONTROLLERS
-    m_pLController = new CSampleControllerDriver(mSession, false, false, comm_buffer/*, overall_offset, overall_rotation*/);
-    vr::VRServerDriverHost()->TrackedDeviceAdded(m_pLController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pLController);
 
-    m_pRController = new CSampleControllerDriver(mSession, true, false, comm_buffer/*, overall_offset, overall_rotation*/);
-    vr::VRServerDriverHost()->TrackedDeviceAdded(m_pRController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pRController);
+    if (s_spawnLeftLegTracker) {
+        m_pLController = new CSampleControllerDriver(mSession, false, false, comm_buffer/*, overall_offset, overall_rotation*/);
+        vr::VRServerDriverHost()->TrackedDeviceAdded(m_pLController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pLController);
+    }
+
+    if (s_spawnRightLegTracker) {
+        m_pRController = new CSampleControllerDriver(mSession, true, false, comm_buffer/*, overall_offset, overall_rotation*/);
+        vr::VRServerDriverHost()->TrackedDeviceAdded(m_pRController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pRController);
+    }
     
-    m_pWaistController = new CSampleControllerDriver(mSession, false, true, comm_buffer/*, overall_offset, overall_rotation*/);
-    vr::VRServerDriverHost()->TrackedDeviceAdded(m_pWaistController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pWaistController);
+    if (s_spawnHipTracker) {
+        m_pWaistController = new CSampleControllerDriver(mSession, false, true, comm_buffer/*, overall_offset, overall_rotation*/);
+        vr::VRServerDriverHost()->TrackedDeviceAdded(m_pWaistController->GetSerialNumber().c_str(), vr::TrackedDeviceClass_GenericTracker, m_pWaistController);
+    }
 #endif
 
 #if EXPERIMENTAL_OFFSET_CALLIBRATION
