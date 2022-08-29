@@ -1,6 +1,9 @@
 # OculusTouchLink
 ## Turn Oculus Rift controllers into emulated Vive trackers!
 
+**As much as we want it to be, THIS IS NOT A REPLACEMENT FOR THE LIV VR OBJECT SERVER. TouchLink takes over your Rift entirely, even if only one tracker is enabled.**  
+If you're here because of [this VRChat bug](https://feedback.vrchat.com/vrchat-ik-20/p/using-non-standard-devices-as-trackers-can-cause-crashes), then give [this app on Booth.pm](https://booth.pm/en/items/1303330) a try instead of LIVVRObjectServer. Keep note that it depends on OpenVR-InputEmulator, and could break at any time. We wish to look into a remedy to this using TouchLink in the future.
+
 This only works with the Rift CV1:
 (This one)
 
